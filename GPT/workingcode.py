@@ -1,9 +1,9 @@
 import torch
-import torch.nn
+import torch.nn as nn
 from torch.nn import functional as F
 
 torch.manual_seed(1337)
-B,T,C = 4, 8, 2 # batch, time, channels
+B,T,C = 4, 8, 32 # batch, time, channels
 x = torch.randn(B,T,C)
 
 # we are now going to find the mean value for the previous tokens
@@ -31,4 +31,22 @@ tril = torch.tril(torch.ones(T, T))
 wei = torch.zeros((T,T))
 wei = wei.masked_fill(tril == 0, float('-inf'))
 wei = F.softmax(wei, dim=-1) # normalises 0's and -inf's over each row
-xbow3 = wei @ x
+out = wei @ x
+
+# let's see a single Head perform self attention
+head_size = 16
+
+key = nn.Linear(C, head_size, bias=False)
+query = nn.Linear(C, head_size, bias=False)
+value = nn.Linear(C, head_size, bias=False)
+k = key(x)      # (B, T, 16)
+q = query(x)    # (B, T, 16)
+wei = q @ k.transpose(-2, -1)   # (B, T, 16) @ (B, 16, T) ====> (B, T, T)
+
+wei = wei.masked_fill(tril == 0, float('-inf'))
+wei = F.softmax(wei, dim=-1) # normalises 0's and -inf's over each row
+
+v = value(x)
+out = wei @ v
+print(out.shape)
+print(wei)
